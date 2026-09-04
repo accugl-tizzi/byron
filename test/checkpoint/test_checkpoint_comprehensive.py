@@ -74,9 +74,10 @@ class TestSaveLoadPopulation:
         assert temp_checkpoint_file.stat().st_size > 0
         
         # Load
-        loaded_pop = load_population(temp_checkpoint_file)
+        loaded_pop, loaded_gen = load_population(temp_checkpoint_file)
         
         # Verify attributes
+        assert loaded_gen == sample_population.generation
         assert loaded_pop.generation == sample_population.generation
         assert len(loaded_pop) == len(sample_population)
         assert loaded_pop[0].fitness == sample_population[0].fitness
@@ -84,7 +85,7 @@ class TestSaveLoadPopulation:
     def test_loaded_population_has_correct_individuals(self, sample_population, temp_checkpoint_file):
         """Test that all individuals are preserved correctly"""
         save_population(sample_population, temp_checkpoint_file)
-        loaded_pop = load_population(temp_checkpoint_file)
+        loaded_pop, _ = load_population(temp_checkpoint_file)
         
         # Check all individuals
         for i in range(len(sample_population)):
@@ -94,8 +95,9 @@ class TestSaveLoadPopulation:
     def test_loaded_population_preserves_metadata(self, sample_population, temp_checkpoint_file):
         """Test that population metadata is preserved"""
         save_population(sample_population, temp_checkpoint_file)
-        loaded_pop = load_population(temp_checkpoint_file)
+        loaded_pop, loaded_gen = load_population(temp_checkpoint_file)
         
+        assert loaded_gen == sample_population.generation
         assert loaded_pop.generation == sample_population.generation
         assert abs(loaded_pop.entropy - sample_population.entropy) < 0.001
         assert loaded_pop.population_extra_parameters == sample_population.population_extra_parameters
@@ -128,7 +130,7 @@ class TestSaveLoadPopulation:
             save_population(sample_population, nested_path)
             
             assert nested_path.exists()
-            loaded_pop = load_population(nested_path)
+            loaded_pop, _ = load_population(nested_path)
             assert len(loaded_pop) == len(sample_population)
 
 
@@ -349,7 +351,7 @@ class TestCheckpointContinuation:
         )
         
         # Load checkpoint
-        loaded_pop = load_population(temp_checkpoint_file)
+        loaded_pop, _ = load_population(temp_checkpoint_file)
         starting_gen = loaded_pop.generation
         
         assert starting_gen == 5
@@ -370,7 +372,7 @@ class TestCheckpointContinuation:
     def test_checkpoint_preserves_problem_definition(self, sample_population, temp_checkpoint_file):
         """Test that problem definition can be reconstructed from checkpoint"""
         save_population(sample_population, temp_checkpoint_file)
-        loaded_pop = load_population(temp_checkpoint_file)
+        loaded_pop, _ = load_population(temp_checkpoint_file)
         
         # Check that top_frame is preserved (check type rather than string representation)
         assert loaded_pop.top_frame is not None
@@ -418,7 +420,7 @@ class TestCheckpointFileFormats:
     def test_checkpoint_with_path_object(self, sample_population, temp_checkpoint_file):
         """Test that Path objects work for checkpoint files"""
         save_population(sample_population, temp_checkpoint_file)
-        loaded_pop = load_population(temp_checkpoint_file)
+        loaded_pop, _ = load_population(temp_checkpoint_file)
         
         assert len(loaded_pop) == len(sample_population)
     
@@ -429,7 +431,7 @@ class TestCheckpointFileFormats:
         
         try:
             save_population(sample_population, temp_path)
-            loaded_pop = load_population(temp_path)
+            loaded_pop, _ = load_population(temp_path)
             
             assert len(loaded_pop) == len(sample_population)
         finally:
@@ -477,7 +479,7 @@ class TestCheckpointPerformance:
             
             # Save and load should work with larger populations
             save_population(population, temp_path)
-            loaded_pop = load_population(temp_path)
+            loaded_pop, _ = load_population(temp_path)
             
             assert len(loaded_pop) == len(population)
             assert loaded_pop.generation == population.generation
