@@ -12,8 +12,7 @@ def fitness(phenotype: str) -> int:
 def run_session(session_num):
     # Check starting point
     if CHECKPOINT.exists():
-        old_pop = load_population(CHECKPOINT)
-        starting_gen = old_pop.generation
+        old_pop, starting_gen = load_population(CHECKPOINT)
         print(f"\n📂 Session {session_num}: Continuing from generation {starting_gen}")
         print(f"   Previous best: {old_pop[0].fitness}")
     else:
