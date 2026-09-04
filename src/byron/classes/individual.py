@@ -262,12 +262,20 @@ class Individual(Paranoid):
         """Set the fitness of the individual and update operator stats"""
         assert self._check_fitness(value)
         self._fitness = value
-        if any(value >> i.fitness for i in self._lineage.parents) and any(
-            value >> i.fitness or not value.is_distinguishable(i.fitness) for i in self.lineage.parents
+        parent_fitnesses = list()
+        for parent in self._lineage.parents:
+            try:
+                parent_fitnesses.append(parent.fitness)
+            except ReferenceError:
+                # Parents are tracked through weak references and may disappear after lifecycle pruning.
+                continue
+
+        if parent_fitnesses and any(value >> f for f in parent_fitnesses) and any(
+            value >> f or not value.is_distinguishable(f) for f in parent_fitnesses
         ):
             self._lineage.operator.stats.successes += 1
-        elif any(value << i.fitness for i in self.lineage.parents) and any(
-            value << i.fitness or not value.is_distinguishable(i.fitness) for i in self.lineage.parents
+        elif parent_fitnesses and any(value << f for f in parent_fitnesses) and any(
+            value << f or not value.is_distinguishable(f) for f in parent_fitnesses
         ):
             self._lineage.operator.stats.failures += 1
         logger.debug(f"Individual: Fitness of {self}/{self.lineage} is {value}")

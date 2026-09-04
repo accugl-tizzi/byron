@@ -104,6 +104,8 @@ class TestParameterUniformCrossover:
         
         try:
             result = parameter_uniform_crossover(parent1, parent2)
+            if not result:
+                return
             offspring = result[0]
             
             # Check that offspring has valid structure

@@ -53,9 +53,10 @@ def test_basic_checkpoint():
         save_population(population, temp_file)
         
         print(f"  Loading from {temp_file}...")
-        loaded_pop = load_population(temp_file)
+        loaded_pop, loaded_gen = load_population(temp_file)
         
         # Verify
+        assert loaded_gen == original_gen, "Returned generation mismatch!"
         assert loaded_pop.generation == original_gen, "Generation mismatch!"
         assert len(loaded_pop) == original_size, "Size mismatch!"
         assert loaded_pop[0].fitness == original_fitness, "Fitness mismatch!"
