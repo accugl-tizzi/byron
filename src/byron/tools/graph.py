@@ -41,6 +41,7 @@ __all__ = [
     'get_siblings',
     'get_successors',
     'make_digraph_cached',
+    'renumber_in_structural_order',
     'set_successors_order',
 ]
 
@@ -99,6 +100,33 @@ def set_successors_order(ref: NodeReference, new_order: Sequence[int]) -> None:
         G.remove_edge(u, v, k)
     for v in new_order:
         G.add_edge(ref.node, v, **attributes[(u, v)])  # replace all attributes
+
+
+def renumber_in_structural_order(G: nx.MultiDiGraph) -> None:
+    """Relabel all nodes (in place) with fresh ids following the current order of the FRAMEWORK edges.
+
+    Siblings are dumped in node-id order (see `get_structure`) and `Individual.clone` relabels nodes in
+    insertion order, so an order set with `set_successors_order` is lost unless ids follow it: call this
+    afterwards. Node ids held by the caller are invalidated.
+    """
+    order = []
+    stack = [NODE_ZERO]
+    while stack:
+        node = stack.pop()
+        order.append(node)
+        stack.extend(reversed([v for _, v, t in G.out_edges(node, data='_type') if t == FRAMEWORK]))
+    reached = set(order)
+    order.extend(n for n in G.nodes if n not in reached)
+    mapping = {n: n if n == NODE_ZERO else Node() for n in order}
+
+    nodes = [(mapping[n], dict(G.nodes[n])) for n in order]
+    edges = [(mapping[u], mapping[v], k, dict(d)) for n in order for u, v, k, d in G.out_edges(n, keys=True, data=True)]
+    graph_attributes = dict(G.graph)
+    G.clear()
+    G.graph.update(graph_attributes)
+    G.add_nodes_from(nodes)
+    G.add_edges_from(edges)
+    fasten_subtree_parameters(NodeReference(G, NODE_ZERO))
 
 
 def get_node_color_dict(G: nx.MultiDiGraph) -> dict[int, int]:
