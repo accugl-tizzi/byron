@@ -76,12 +76,14 @@ def array_parameter_mutation(parent: Individual, strength=1.0) -> list['Individu
 
 @genetic_operator(num_parents=1)
 def add_macro_to_bunch(parent: Individual, strength=1.0) -> list['Individual']:
+    """Insert a new element from the pool at a random position of a macro or frame bunch."""
     offspring = parent.clone
     G = offspring.genome
     candidates = [
         n
         for n in offspring.genome
-        if isinstance(G.nodes[n]['_selement'], MacroBunch) and G.out_degree[n] < G.nodes[n]['_selement'].SIZE[1] - 1
+        if isinstance(G.nodes[n]['_selement'], (MacroBunch, FrameBunch))
+        and G.out_degree[n] < G.nodes[n]['_selement'].SIZE[1] - 1
     ]
     if not candidates:
         raise ByronOperatorFailure
@@ -94,28 +96,39 @@ def add_macro_to_bunch(parent: Individual, strength=1.0) -> list['Individual']:
     G.add_edge(node, new_macro.node, _type=FRAMEWORK)
     initialize_subtree(new_macro)
     if len(macros_in_bunch) > 0:
-        i = rrandom.random_int(0, len(macros_in_bunch))
+        i = rrandom.random_int(0, len(macros_in_bunch) + 1)  # half-open: appending is allowed too
         set_successors_order(NodeReference(G, node), macros_in_bunch[:i] + [new_macro.node] + macros_in_bunch[i:])
+        renumber_in_structural_order(G)  # otherwise the new element is always dumped last
     return [offspring]
 
 
 @genetic_operator(num_parents=1)
 def remove_macro_from_bunch(parent: Individual, strength=1.0) -> list['Individual']:
+    """Remove one element (a macro, or a whole frame subtree) from a macro or frame bunch."""
     offspring = parent.clone
     G = offspring.genome
     frame_candidates = [
         n
         for n in offspring.genome
-        if isinstance(G.nodes[n]['_selement'], MacroBunch) and G.out_degree[n] > G.nodes[n]['_selement'].SIZE[0]
+        if isinstance(G.nodes[n]['_selement'], (MacroBunch, FrameBunch))
+        and G.out_degree[n] > G.nodes[n]['_selement'].SIZE[0]
     ]
     if not frame_candidates:
         raise ByronOperatorFailure
     frame_node = rrandom.choice(frame_candidates)
-    candidates = [
-        (n, G.nodes[n]['_selement'].BYRON_CLASS_NAME)
-        for n in dfs_preorder_nodes(G, frame_node)
-        if isinstance(G.nodes[n]['_selement'], Macro) and G.in_degree(n) == 1
-    ]
+    if isinstance(G.nodes[frame_node]['_selement'], FrameBunch):
+        # Elements of a frame bunch are subtrees: remove one of the bunch's direct children
+        candidates = [
+            (n, G.nodes[n]['_selement'].BYRON_CLASS_NAME)
+            for n in get_successors(NodeReference(G, frame_node))
+            if G.in_degree(n) == 1
+        ]
+    else:
+        candidates = [
+            (n, G.nodes[n]['_selement'].BYRON_CLASS_NAME)
+            for n in dfs_preorder_nodes(G, frame_node)
+            if isinstance(G.nodes[n]['_selement'], Macro) and G.in_degree(n) == 1
+        ]
 
     if not candidates:
         raise ByronOperatorFailure
@@ -125,5 +138,5 @@ def remove_macro_from_bunch(parent: Individual, strength=1.0) -> list['Individua
     ]
 
     node = rrandom.choice(frequency_candidates[floor(len(frequency_candidates) * (1 - strength)) :])
-    G.remove_node(node)
+    G.remove_nodes_from(list(dfs_preorder_nodes(get_structure(G), node)))
     return [offspring]
