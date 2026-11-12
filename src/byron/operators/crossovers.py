@@ -298,6 +298,7 @@ def subtree_crossover(parent1: Individual, parent2: Individual, strength: float 
     
     if parent_node is None:
         raise ByronOperatorFailure("Cannot find parent node")
+    siblings_order = get_successors(NodeReference(G1, parent_node))
     
     # Remove the subtree at node1
     subtree1_nodes = list(dfs_preorder_nodes(G1, node1))
@@ -329,9 +330,15 @@ def subtree_crossover(parent1: Individual, parent2: Individual, strength: float 
     # Connect to parent
     G1.add_edge(parent_node, node_mapping[node2], _type=FRAMEWORK)
     
+    # Put the new subtree where node1 was, not after all its siblings
+    set_successors_order(
+        NodeReference(G1, parent_node), [node_mapping[node2] if n == node1 else n for n in siblings_order]
+    )
+    
     # Re-fasten parameters
     fasten_subtree_parameters(NodeReference(G1, node_mapping[node2]))
-    
+    renumber_in_structural_order(G1)  # siblings are dumped in node-id order
+
     # Validate
     if not offspring.valid:
         raise ByronOperatorFailure("Crossover produced invalid individual")

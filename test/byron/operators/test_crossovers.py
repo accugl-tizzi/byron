@@ -257,6 +257,21 @@ class TestSubtreeCrossover:
         except ByronOperatorFailure:
             pass
     
+    def test_crossover_keeps_subtree_position(self):
+        """The swapped-in subtree must be dumped where the replaced one was, not after its siblings."""
+        inner = byron.f.sequence([byron.f.macro("inner {x}", x=byron.f.integer_parameter(0, 100))])
+        top = byron.f.sequence(["begin", inner, "end"])
+        population = byron.classes.Population(top)
+        for _ in range(20):
+            parent1 = create_individual(top)
+            parent2 = create_individual(top)
+            try:
+                offspring = subtree_crossover(parent1, parent2)[0]
+            except ByronOperatorFailure:
+                continue
+            body = [line.split()[0] for line in population.dump_individual(offspring).splitlines()[1:] if line.strip()]
+            assert body == ["begin", "inner", "end"]
+
     def test_crossover_with_complex_frame(self, complex_top_frame):
         """Test crossover with complex frame structure."""
         parent1 = create_individual(complex_top_frame)
